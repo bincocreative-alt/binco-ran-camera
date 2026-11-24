@@ -1,19 +1,255 @@
+
 <!doctype html>
 <html lang="id">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>BINCO RAN Camera</title>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BINCO RAN Camera</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
-*{box-sizing:border-box}body{margin:0;background:#10231d;color:#fff;font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}.app{width:min(100%,520px);background:#18392e;border:1px solid #315b4c;border-radius:20px;padding:20px;box-shadow:0 18px 50px #0005}h1{font-size:20px;margin:0 0 6px}.sub{color:#bdd3c8;font-size:13px;margin-bottom:16px}video{width:100%;background:#07120e;border-radius:14px;display:block;max-height:65vh;object-fit:cover}.status{font-size:14px;line-height:1.5;color:#d7e8df;margin:14px 0;overflow-wrap:anywhere}button{width:100%;border:0;border-radius:10px;padding:15px;margin-top:10px;background:#39a878;color:#071b12;font-weight:700;font-size:15px}button.secondary{background:#dce9e2}button:disabled{opacity:.45}.hidden{display:none}.tag{display:inline-block;background:#244f40;border-radius:30px;padding:6px 10px;font-size:12px;margin-bottom:12px}
-</style></head>
-<body><main class="app"><div class="tag">BINCO RAN · CAMERA</div><h1 id="heading">Kamera BINCO RAN</h1><div class="sub">Izinkan akses kamera saat diminta oleh browser.</div><video id="video" autoplay playsinline muted></video><div id="status" class="status">Menyiapkan kamera…</div><button id="capture" class="hidden">AMBIL FOTO</button><button id="cancel" class="secondary">TUTUP KAMERA</button></main>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#10231d;color:#fff;
+  font-family:Arial,sans-serif;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;padding:16px
+}
+.app{
+  width:min(100%,520px);background:#18392e;
+  border:1px solid #315b4c;border-radius:20px;
+  padding:20px;box-shadow:0 18px 50px #0005
+}
+h1{font-size:20px;margin:0 0 6px}
+.sub{color:#bdd3c8;font-size:13px;margin-bottom:16px}
+video{
+  width:100%;background:#07120e;border-radius:14px;
+  display:block;max-height:65vh;object-fit:cover
+}
+#qr-reader{width:100%;overflow:hidden;border-radius:14px}
+#qr-reader video{max-height:65vh;object-fit:cover}
+#qr-reader img{max-width:100%}
+.status{font-size:14px;line-height:1.5;color:#d7e8df;margin:14px 0;overflow-wrap:anywhere}
+button{
+  width:100%;border:0;border-radius:10px;padding:15px;
+  margin-top:10px;background:#39a878;color:#071b12;
+  font-weight:700;font-size:15px
+}
+button.secondary{background:#dce9e2}
+button:disabled{opacity:.45}
+.hidden{display:none}
+.tag{display:inline-block;background:#244f40;border-radius:30px;padding:6px 10px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+
+<body>
+<main class="app">
+<div class="tag">BINCO RAN · CAMERA</div>
+<h1 id="heading">Kamera BINCO RAN</h1>
+<div class="sub">Izinkan akses kamera saat diminta browser.</div>
+
+<video id="video" autoplay playsinline muted></video>
+<div id="qr-reader" class="hidden"></div>
+
+<div id="status" class="status">Menyiapkan kamera…</div>
+<button id="capture" class="hidden">AMBIL FOTO</button>
+<button id="cancel" class="secondary">TUTUP KAMERA</button>
+</main>
+
 <script>
-(()=>{const params=new URLSearchParams(location.search),mode=params.get('mode'),nonce=params.get('nonce'),returnOrigin=params.get('returnOrigin');const video=document.getElementById('video'),status=document.getElementById('status'),capture=document.getElementById('capture'),heading=document.getElementById('heading');let stream=null,detector=null,stopped=false;
-function send(type,data){if(!window.opener||!returnOrigin){status.textContent='Jendela aplikasi asal tidak ditemukan. Tutup halaman ini dan ulangi dari aplikasi BINCO RAN.';return;}window.opener.postMessage({channel:'BINCO_CAMERA_V1',nonce,type,data},returnOrigin);stop();status.textContent=type==='camera-result'?'Berhasil dikirim ke aplikasi BINCO RAN.':'Kamera ditutup.';setTimeout(()=>window.close(),450)}
-function stop(){stopped=true;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
-document.getElementById('cancel').onclick=()=>send('camera-cancel',null);
-async function start(){if(!['qr','selfie','product'].includes(mode)||!nonce||!returnOrigin){status.textContent='Permintaan kamera tidak valid. Buka kamera dari aplikasi BINCO RAN.';return}if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){status.textContent='Browser tidak menyediakan akses kamera. Gunakan Chrome terbaru melalui HTTPS.';return}
-try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:mode==='selfie'?'user':'environment',width:{ideal:1280},height:{ideal:720}}});video.srcObject=stream;await video.play();if(mode==='qr'){heading.textContent='Scan QR Gudang';if(!('BarcodeDetector'in window)){status.textContent='Browser belum mendukung pemindaian QR otomatis. Gunakan Chrome Android terbaru.';return}detector=new BarcodeDetector({formats:['qr_code']});status.textContent='Arahkan kamera belakang ke QR gudang.';scan()}else{heading.textContent=mode==='product'?'Foto Produk / Kondisi Barang':'Ambil Selfie Petugas';capture.textContent=mode==='product'?'AMBIL FOTO PRODUK':'AMBIL SELFIE';capture.classList.remove('hidden');status.textContent=mode==='product'?'Arahkan kamera belakang ke produk, pastikan kondisi barang terlihat jelas, lalu tekan AMBIL FOTO PRODUK.':'Posisikan wajah di tengah layar, lalu tekan AMBIL SELFIE.'}}
-catch(e){status.textContent='Kamera gagal dibuka: '+e.name+' — '+e.message+'. Periksa izin kamera browser lalu coba lagi.'}}
-async function scan(){if(stopped||mode!=='qr')return;if(video.readyState>=2){try{const found=await detector.detect(video);if(found.length&&found[0].rawValue){send('camera-result',{barcode:found[0].rawValue.trim()});return}}catch(e){status.textContent='QR belum terbaca. Dekatkan dan stabilkan kamera.'}}requestAnimationFrame(scan)}
-capture.onclick=()=>{if(!video.videoWidth){status.textContent='Kamera belum siap. Tunggu sebentar.';return}const canvas=document.createElement('canvas'),scale=Math.min(1,1280/video.videoWidth);canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);send('camera-result',{imageBase64:canvas.toDataURL('image/jpeg',.82).split(',')[1],mimeType:'image/jpeg'})};
-start();window.addEventListener('beforeunload',stop)})();
-</script></body></html>
+(()=>{
+const params=new URLSearchParams(location.search);
+const mode=params.get('mode');
+const nonce=params.get('nonce');
+const returnOrigin=params.get('returnOrigin');
+
+const video=document.getElementById('video');
+const status=document.getElementById('status');
+const capture=document.getElementById('capture');
+const heading=document.getElementById('heading');
+const qrReader=document.getElementById('qr-reader');
+
+let stream=null;
+let qrScanner=null;
+let stopped=false;
+let completed=false;
+
+function stopCamera(){
+  stopped=true;
+
+  if(stream){
+    stream.getTracks().forEach(track=>track.stop());
+    stream=null;
+  }
+
+  if(qrScanner){
+    const scanner=qrScanner;
+    qrScanner=null;
+
+    try{
+      if(scanner.isScanning){
+        scanner.stop().then(()=>scanner.clear()).catch(()=>{});
+      }else{
+        scanner.clear();
+      }
+    }catch(e){}
+  }
+}
+
+function send(type,data){
+  if(completed)return;
+  completed=true;
+
+  if(!window.opener||!returnOrigin){
+    status.textContent='Jendela aplikasi asal tidak ditemukan. Tutup dan ulangi dari BINCO RAN.';
+    completed=false;
+    return;
+  }
+
+  stopCamera();
+
+  window.opener.postMessage({
+    channel:'BINCO_CAMERA_V1',
+    nonce:nonce,
+    type:type,
+    data:data
+  },returnOrigin);
+
+  status.textContent=type==='camera-result'
+    ?'Berhasil dikirim ke aplikasi BINCO RAN.'
+    :'Kamera ditutup.';
+
+  setTimeout(()=>window.close(),500);
+}
+
+document.getElementById('cancel').onclick=()=>{
+  send('camera-cancel',null);
+};
+
+async function startQR(){
+  heading.textContent='Scan QR Gudang';
+  video.classList.add('hidden');
+  qrReader.classList.remove('hidden');
+
+  if(typeof Html5Qrcode==='undefined'){
+    status.textContent='Library pemindai gagal dimuat. Periksa koneksi internet dan coba kembali.';
+    return;
+  }
+
+  try{
+    qrScanner=new Html5Qrcode('qr-reader');
+
+    status.textContent='Meminta izin kamera. Arahkan kamera belakang ke QR gudang.';
+
+    await qrScanner.start(
+      {facingMode:'environment'},
+      {
+        fps:10,
+        qrbox:(width,height)=>{
+          const size=Math.floor(Math.min(width,height)*0.75);
+          return {width:size,height:size};
+        },
+        aspectRatio:1
+      },
+      (decodedText)=>{
+        if(completed||stopped)return;
+
+        status.textContent='QR berhasil terbaca. Mengirim hasil...';
+        send('camera-result',{
+          barcode:String(decodedText).trim()
+        });
+      },
+      ()=>{
+        // QR belum terbaca, pemindaian tetap berjalan.
+      }
+    );
+
+    if(!completed){
+      status.textContent='Kamera aktif. Posisikan QR di dalam kotak pemindaian.';
+    }
+
+  }catch(error){
+    status.textContent='Gagal memulai pemindai: '+error+'. Periksa izin kamera dan coba lagi.';
+  }
+}
+
+async function startPhoto(){
+  heading.textContent=mode==='product'
+    ?'Foto Produk / Kondisi Barang'
+    :'Ambil Selfie Petugas';
+
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:mode==='selfie'?'user':'environment',
+        width:{ideal:1280},
+        height:{ideal:720}
+      }
+    });
+
+    video.srcObject=stream;
+    await video.play();
+
+    capture.textContent=mode==='product'
+      ?'AMBIL FOTO PRODUK'
+      :'AMBIL SELFIE';
+
+    capture.classList.remove('hidden');
+
+    status.textContent=mode==='product'
+      ?'Pastikan kondisi produk terlihat jelas, lalu ambil foto.'
+      :'Posisikan wajah di tengah layar, lalu ambil selfie.';
+
+  }catch(error){
+    status.textContent='Kamera gagal dibuka: '+error.name+' — '+error.message+'. Periksa izin kamera browser.';
+  }
+}
+
+capture.onclick=()=>{
+  if(!video.videoWidth){
+    status.textContent='Kamera belum siap. Tunggu sebentar.';
+    return;
+  }
+
+  const canvas=document.createElement('canvas');
+  const scale=Math.min(1,1280/video.videoWidth);
+
+  canvas.width=Math.round(video.videoWidth*scale);
+  canvas.height=Math.round(video.videoHeight*scale);
+
+  canvas.getContext('2d').drawImage(
+    video,0,0,canvas.width,canvas.height
+  );
+
+  send('camera-result',{
+    imageBase64:canvas.toDataURL('image/jpeg',0.82).split(',')[1],
+    mimeType:'image/jpeg'
+  });
+};
+
+async function start(){
+  if(!['qr','selfie','product'].includes(mode)||!nonce||!returnOrigin){
+    status.textContent='Permintaan kamera tidak valid. Buka kamera dari aplikasi BINCO RAN.';
+    return;
+  }
+
+  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){
+    status.textContent='Browser tidak mendukung kamera. Gunakan Chrome terbaru melalui HTTPS.';
+    return;
+  }
+
+  if(mode==='qr'){
+    await startQR();
+  }else{
+    await startPhoto();
+  }
+}
+
+window.addEventListener('beforeunload',stopCamera);
+start();
+
+})();
+</script>
+</body>
+</html>
